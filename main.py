@@ -14,7 +14,7 @@ for f in files:
 from sort import *
 tracker = Sort()
 memory = {}
-line = [(43, 543), (550, 655)]
+line = [(580, 43), (620, 655)]
 counter = 0
 
 # construct the argument parse and parse the arguments
@@ -207,7 +207,7 @@ while True:
 	# counter += 1
 
 	# saves image file
-	cv2.imwrite("output/frame-{}.png".format(frameIndex), frame)
+	#cv2.imwrite("output/frame-{}.png".format(frameIndex), frame)
 
 	# check if the video writer is None
 	if writer is None:
