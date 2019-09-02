@@ -19,7 +19,7 @@ from __future__ import print_function
 
 from numba import jit
 import numpy as np
-from scipy.opimize import linear_sum_assignment
+from scipy.optimize import linear_sum_assignment
 from filterpy.kalman import KalmanFilter
 
 @jit
@@ -136,7 +136,8 @@ def associate_detections_to_trackers(detections,trackers,iou_threshold = 0.3):
   for d,det in enumerate(detections):
     for t,trk in enumerate(trackers):
       iou_matrix[d,t] = iou(det,trk)
-  matched_indices = linear_sum_assignment(-iou_matrix)
+  row,col = linear_sum_assignment(-iou_matrix)
+  matched_indices = np.array([np.array([row[i],col[i]]) for i in range(row.shape[0])])
 
   unmatched_detections = []
   for d,det in enumerate(detections):

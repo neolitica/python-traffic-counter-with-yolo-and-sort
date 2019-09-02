@@ -83,6 +83,7 @@ except:
 	total = -1
 
 # loop over frames from the video file stream
+face_chars = {}
 while True:
 	# read the next frame from the file
 	(grabbed, frame) = vs.read()
@@ -121,10 +122,9 @@ while True:
 			scores = detection[5:]
 			classID = np.argmax(scores)
 			confidence = scores[classID]
-
 			# filter out weak predictions by ensuring the detected
 			# probability is greater than the minimum probability
-			if confidence > args["confidence"]:
+			if confidence > args["confidence"] and classID == 0:
 				# scale the bounding box coordinates back relative to
 				# the size of the image, keeping in mind that YOLO
 				# actually returns the center (x, y)-coordinates of
@@ -166,6 +166,7 @@ while True:
 	previous = memory.copy()
 	memory = {}
 	padding = 10
+	
 
 	for track in tracks:
 		boxes.append([track[0], track[1], track[2], track[3]])
@@ -178,9 +179,14 @@ while True:
 			# extract the bounding box coordinates
 			(x, y) = (int(box[0]), int(box[1]))
 			(w, h) = (int(box[2]), int(box[3]))
-
-			person = frame[max(0,box[1]-padding):min(box[3]+padding,frame.shape[0]-1),max(0,box[0]-padding):min(box[2]+padding, frame.shape[1]-1)]
-			process_face(person)
+			person = frame[int(max(0,box[1]-padding)):int(min(box[3]+padding,frame.shape[0]-1)),int(max(0,box[0]-padding)):int(min(box[2]+padding, frame.shape[1]-1))]
+			if indexIDs[i] not in face_chars:
+				face, age, gender = process_face(person, conf_threshold=0.3)
+				if age is not None:
+					face_chars[indexIDs[i]] = {
+						"age": age,
+						"gender": gender
+					}
 
 			# draw a bounding box rectangle and label on the image
 			# color = [int(c) for c in COLORS[classIDs[i]]]
@@ -201,8 +207,12 @@ while True:
 					counter += 1
 
 			# text = "{}: {:.4f}".format(LABELS[classIDs[i]], confidences[i])
-			text = "{}".format(indexIDs[i])
-			cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+			if indexIDs[i] not in face_chars:
+				text = "{}".format(indexIDs[i])
+				cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+			else:
+				text = "{},{}".format(face_chars[indexIDs[i]]["gender"], face_chars[indexIDs[i]]["age"])
+				cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 			i += 1
 
 	# draw line
