@@ -7,6 +7,8 @@ import cv2
 import os
 import glob
 
+from age_gender import process_face
+
 files = glob.glob('output/*.png')
 for f in files:
 	os.remove(f)
@@ -163,6 +165,7 @@ while True:
 	c = []
 	previous = memory.copy()
 	memory = {}
+	padding = 10
 
 	for track in tracks:
 		boxes.append([track[0], track[1], track[2], track[3]])
@@ -175,6 +178,9 @@ while True:
 			# extract the bounding box coordinates
 			(x, y) = (int(box[0]), int(box[1]))
 			(w, h) = (int(box[2]), int(box[3]))
+
+			person = frame[max(0,box[1]-padding):min(box[3]+padding,frame.shape[0]-1),max(0,box[0]-padding):min(box[2]+padding, frame.shape[1]-1)]
+			process_face(person)
 
 			# draw a bounding box rectangle and label on the image
 			# color = [int(c) for c in COLORS[classIDs[i]]]
