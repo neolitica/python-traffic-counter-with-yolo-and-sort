@@ -181,7 +181,7 @@ while True:
 			(w, h) = (int(box[2]), int(box[3]))
 			person = frame[int(max(0,box[1]-padding)):int(min(box[3]+padding,frame.shape[0]-1)),int(max(0,box[0]-padding)):int(min(box[2]+padding, frame.shape[1]-1))]
 			if indexIDs[i] not in face_chars:
-				face, age, gender = process_face(person, conf_threshold=0.3)
+				face, age, gender = process_face(person, face_threshold=0.4)
 				if age is not None:
 					face_chars[indexIDs[i]] = {
 						"age": age,

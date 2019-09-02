@@ -48,12 +48,12 @@ faceNet = cv.dnn.readNet(faceModel, faceProto)
 
 # Open a video file or an image file or a camera stream
 
-def process_face(frame, conf_threshold=0.5):
+def process_face(frame, face_threshold=0.5, gender_threshold=0.7):
     MODEL_MEAN_VALUES = (78.4263377603, 87.7689143744, 114.895847746)
     ageList = ['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
     genderList = ['Male', 'Female']
     padding = 20
-    frameFace, bboxes = getFaceBox(faceNet, frame, conf_threshold)
+    frameFace, bboxes = getFaceBox(faceNet, frame, face_threshold)
     if not bboxes:
         return frameFace, None, None
 
@@ -67,7 +67,11 @@ def process_face(frame, conf_threshold=0.5):
             return frameFace, None, None
         genderNet.setInput(blob)
         genderPreds = genderNet.forward()
-        gender = genderList[genderPreds[0].argmax()]
+        max_id = genderPreds[0].argmax()
+        gender = genderList[max_id]
+        gender_conf = genderPreds[0][max_id]
+        if gender_conf < gender_threshold:
+            return frameFace, None, None
         # print("Gender Output : {}".format(genderPreds))
         print("Gender : {}, conf = {:.3f}".format(gender, genderPreds[0].max()))
 
