@@ -8,8 +8,8 @@ import os
 import glob
 
 from age_gender import process_face
-from sort import *
-from utils import ccw, intersect, translate_bbox,nms,get_colors
+from sort import Sort
+from utils import ccw, intersect, translate_bbox,nms,get_colors, crop_box, generate_line 
 
 def set_args():
 	# construct the argument parse and parse the arguments
@@ -24,7 +24,6 @@ def set_args():
 		help="minimum probability to filter weak detections")
 	ap.add_argument("-t", "--threshold", type=float, default=0.3,
 		help="threshold when applying non-maxima suppression")
-
 	return ap
 
 def set_yolo(args):
@@ -42,8 +41,6 @@ def set_yolo(args):
 	ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 	return labels, net,ln
 
-
-
 if __name__ == '__main__':
 
 	tracker = Sort()
@@ -52,19 +49,17 @@ if __name__ == '__main__':
 	counter = 0 # counted objects
 	padding = 10 # padding for bbox cropping
 	frameIndex = 0
-
 	ap = set_args()
 	args = vars(ap.parse_args())
-
 	LABELS, net,ln = set_yolo(args)
 	COLORS = get_colors()
+	face_chars = {} #hash to store obtained caracteristics
 
 	# initialize the video stream, pointer to output video file
 	vs = cv2.VideoCapture(args["input"])
 	writer = None
 	(W, H) = (None, None)
 	
-
 	# try to determine the total number of frames in the video file
 	try:
 		prop = cv2.cv.CV_CAP_PROP_FRAME_COUNT if imutils.is_cv2() \
@@ -75,9 +70,6 @@ if __name__ == '__main__':
 		print("[INFO] could not determine # of frames in video")
 		print("[INFO] no approx. completion time can be provided")
 		total = -1
-
-	face_chars = {} #hash to store obtained caracteristics
-
 	# loop over frames from the video file stream
 	while True:
 		# read the next frame from the file
@@ -106,7 +98,7 @@ if __name__ == '__main__':
 				scores = detection[5:]
 				classID = np.argmax(scores)
 				confidence = scores[classID]
-				if confidence > args["confidence"] and classID == 0: # 0 i for person
+				if confidence > args["confidence"] and classID == 0: # 0 is for person
 					# change bbox output format
 					x,y, width,height = translate_bbox(detection,W,H)
 					# update our lists 
@@ -120,7 +112,6 @@ if __name__ == '__main__':
 		np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
 		dets = np.asarray(dets)
 		tracks = tracker.update(dets)
-
 		boxes = []
 		indexIDs = []
 		c = []
@@ -132,12 +123,11 @@ if __name__ == '__main__':
 			memory[indexIDs[-1]] = boxes[-1]
 
 		if len(boxes) > 0:
-			i = int(0)
+			i = 0
 			for box in boxes:
-				# extract the bounding box coordinates
 				(x, y) = (int(box[0]), int(box[1]))
 				(w, h) = (int(box[2]), int(box[3]))
-				person = frame[int(max(0,box[1]-padding)):int(min(box[3]+padding,frame.shape[0]-1)),int(max(0,box[0]-padding)):int(min(box[2]+padding, frame.shape[1]-1))]
+				person = crop_box(frame,box,padding)
 				if indexIDs[i] not in face_chars:
 					face, age, gender = process_face(person, face_threshold=0.4)
 					if age is not None:
@@ -145,22 +135,15 @@ if __name__ == '__main__':
 							"age": age,
 							"gender": gender
 						}
-						
 				color = [int(c) for c in COLORS[indexIDs[i] % len(COLORS)]]
 				cv2.rectangle(frame, (x, y), (w, h), color, 2)
-
+				#check intersection with target line
 				if indexIDs[i] in previous:
 					previous_box = previous[indexIDs[i]]
-					(x2, y2) = (int(previous_box[0]), int(previous_box[1]))
-					(w2, h2) = (int(previous_box[2]), int(previous_box[3]))
-					p0 = (int(x + (w-x)/2), int(y + (h-y)/2))
-					p1 = (int(x2 + (w2-x2)/2), int(y2 + (h2-y2)/2))
+					p0,p1 = generate_line(previous_box,box)
 					cv2.line(frame, p0, p1, color, 3)
-
 					if intersect(p0, p1, line[0], line[1]):
 						counter += 1
-
-				# text = "{}: {:.4f}".format(LABELS[classIDs[i]], confidences[i])
 				if indexIDs[i] not in face_chars:
 					text = "{}".format(indexIDs[i])
 					cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
@@ -170,7 +153,6 @@ if __name__ == '__main__':
 				i += 1
 		cv2.line(frame, line[0], line[1], (0, 255, 255), 5)
 		cv2.putText(frame, str(counter), (100,200), cv2.FONT_HERSHEY_DUPLEX, 5.0, (0, 255, 255), 10)
-
 		# initialize our video writer
 		if writer is None:
 			fourcc = cv2.VideoWriter_fourcc(*"MJPG")

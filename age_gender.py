@@ -26,8 +26,6 @@ def getFaceBox(net, frame, conf_threshold=0.7):
             y2 = int(detections[0, 0, 0, 6] * frameHeight)
             bboxes.append([x1, y1, x2, y2])
             cv.rectangle(frameOpencvDnn, (x1, y1), (x2, y2), (0, 255, 0), int(round(frameHeight/150)), 8)
-        if not len(bboxes):
-            print(detections[0, 0, 0, 2])
     return frameOpencvDnn, bboxes
 
 faceProto = "age_gender_models/opencv_face_detector.pbtxt"
@@ -38,8 +36,6 @@ ageModel = "age_gender_models/age_net.caffemodel"
 
 genderProto = "age_gender_models/gender_deploy.prototxt"
 genderModel = "age_gender_models/gender_net.caffemodel"
-
-
 
 # Load network
 ageNet = cv.dnn.readNet(ageModel, ageProto)
@@ -73,13 +69,13 @@ def process_face(frame, face_threshold=0.5, gender_threshold=0.7):
         if gender_conf < gender_threshold:
             return frameFace, None, None
         # print("Gender Output : {}".format(genderPreds))
-        print("Gender : {}, conf = {:.3f}".format(gender, genderPreds[0].max()))
+        # print("Gender : {}, conf = {:.3f}".format(gender, genderPreds[0].max()))
 
         ageNet.setInput(blob)
         agePreds = ageNet.forward()
         age = ageList[agePreds[0].argmax()]
-        print("Age Output : {}".format(agePreds))
-        print("Age : {}, conf = {:.3f}".format(age, agePreds[0].max()))
+        # print("Age Output : {}".format(agePreds))
+        # print("Age : {}, conf = {:.3f}".format(age, agePreds[0].max()))
 
         label = "{},{}".format(gender, age)
         cv.putText(frameFace, label, (bbox[0], bbox[1]-10), cv.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv.LINE_AA)        
