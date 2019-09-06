@@ -4,6 +4,8 @@ import math
 import time
 import argparse
 
+from utils import crop_box
+
 def getFaceBox(net, frame, conf_threshold=0.7):
     frameOpencvDnn = frame.copy()
     frameHeight = frameOpencvDnn.shape[0]
@@ -50,24 +52,26 @@ def process_face(frame, face_threshold=0.5, gender_threshold=0.7):
     genderList = ['Male', 'Female']
     padding = 20
     frameFace, bboxes = getFaceBox(faceNet, frame, face_threshold)
+    age = None,
+    gender = None
     if not bboxes:
         return frameFace, None, None
 
     for bbox in bboxes:
         # print(bbox)
-        face = frame[max(0,bbox[1]-padding):min(bbox[3]+padding,frame.shape[0]-1),max(0,bbox[0]-padding):min(bbox[2]+padding, frame.shape[1]-1)]
+        face = crop_box(frame,bbox,padding)
         try:
             blob = cv.dnn.blobFromImage(face, 1.0, (227, 227), MODEL_MEAN_VALUES, swapRB=False)
         except:
             print("Could not blob face")
-            return frameFace, None, None
+            continue
         genderNet.setInput(blob)
         genderPreds = genderNet.forward()
         max_id = genderPreds[0].argmax()
         gender = genderList[max_id]
         gender_conf = genderPreds[0][max_id]
         if gender_conf < gender_threshold:
-            return frameFace, None, None
+            continue
         # print("Gender Output : {}".format(genderPreds))
         # print("Gender : {}, conf = {:.3f}".format(gender, genderPreds[0].max()))
 
