@@ -19,9 +19,13 @@ def set_args():
 		help="path to output video")
 	ap.add_argument("-y", "--yolo", required=True,
 		help="base path to YOLO directory")
-	ap.add_argument("-c", "--confidence", type=float, default=0.5,
+	ap.add_argument("-cc", "--confidence", type=float, default=0.5,
 		help="minimum probability to filter weak detections")
-	ap.add_argument("-t", "--threshold", type=float, default=0.3,
+	ap.add_argument("-nmst", "--threshold", type=float, default=0.3,
+		help="threshold when applying non-maxima suppression")
+	ap.add_argument("-ft", "--face-threshold", type=float, default=0.4,
+		help="threshold when applying non-maxima suppression")
+	ap.add_argument("-gt", "--gender-threshold", type=float, default=0.7,
 		help="threshold when applying non-maxima suppression")
 	ap.add_argument("-ct", "--count", action='store_true',
 		help="Count people")
@@ -133,7 +137,7 @@ if __name__ == '__main__':
 					(w, h) = (int(box[2]), int(box[3]))
 					person = crop_box(frame,box,padding)
 					if args["characteristics"] and indexIDs[i] not in face_chars:
-						face, age, gender = process_face(person, face_threshold=0.4)
+						face, age, gender = process_face(person, face_threshold=args["face-threshold"], gender_threshold=args["gender-threshold"])
 						if age is not None:
 							face_chars[indexIDs[i]] = {
 								"age": age,
@@ -176,8 +180,7 @@ if __name__ == '__main__':
 			(grabbed, frame) = vs.read()
 			if not grabbed:
 				break
-			frameFace, age,gender = process_face(frame, face_threshold=0.7)
-			print(frameFace)
+			frameFace, age,gender = process_face(frame, face_threshold=args["face-threshold"], gender_threshold=args["gender-threshold"])
 			cv2.imshow("Read characteristics", frameFace)
 			if writer is None:
 				# initialize our video writer
