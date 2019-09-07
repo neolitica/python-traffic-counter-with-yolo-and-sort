@@ -93,7 +93,7 @@ if __name__ == '__main__':
 			net.setInput(blob)
 			start = time.time()
 			layerOutputs = net.forward(ln)
-			end = time.time()
+			
 
 			# lists of detections for frame
 			boxes = []
@@ -137,7 +137,7 @@ if __name__ == '__main__':
 					(w, h) = (int(box[2]), int(box[3]))
 					person = crop_box(frame,box,padding)
 					if args["characteristics"] and indexIDs[i] not in face_chars:
-						face, age, gender = process_face(person, face_threshold=args["face-threshold"], gender_threshold=args["gender-threshold"])
+						face, age, gender = process_face(person, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
 						if age is not None:
 							face_chars[indexIDs[i]] = {
 								"age": age,
@@ -161,12 +161,14 @@ if __name__ == '__main__':
 					i += 1
 			cv2.line(frame, line[0], line[1], (0, 255, 255), 5)
 			cv2.putText(frame, str(counter), (100,200), cv2.FONT_HERSHEY_DUPLEX, 5.0, (0, 255, 255), 10)
-			if total > 0 and frameIndex == 0:
-				elap = (end - start)
-				print("[INFO] single frame took {:.4f} seconds".format(elap))
-				print("[INFO] estimated total time to finish: {:.4f}".format(
-					elap * total))
-
+			end = time.time()
+			if total > 0:
+				if frameIndex == 0:
+					elap = (end - start)
+					print("[INFO] single frame took {:.4f} seconds".format(elap))
+					print("[INFO] estimated total time to finish: {:.4f}".format(
+						elap * total))
+				print(f"[INFO] {frameIndex}/{total}\r", end="")
 			if writer is None:
 				fourcc = cv2.VideoWriter_fourcc(*"MJPG")
 				writer = cv2.VideoWriter(args["output"], fourcc, 30,
@@ -176,16 +178,27 @@ if __name__ == '__main__':
 		print("[INFO] cleaning up...")
 		writer.release()
 	elif args['characteristics']:
+		frameIndex = 0
 		while cv2.waitKey(1) < 0:
 			(grabbed, frame) = vs.read()
 			if not grabbed:
 				break
-			frameFace, age,gender = process_face(frame, face_threshold=args["face-threshold"], gender_threshold=args["gender-threshold"])
-			cv2.imshow("Read characteristics", frameFace)
+			start = time.time()
+			frameFace, age,gender = process_face(frame, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
+			#cv2.imshow("Read characteristics", frameFace)
 			if writer is None:
 				# initialize our video writer
 				fourcc = cv2.VideoWriter_fourcc(*"MJPG")
 				writer = cv2.VideoWriter(args['output'], fourcc, 30,
 					(frameFace.shape[1], frameFace.shape[0]), True)
 			writer.write(frameFace)
+			end = time.time()
+			if total > 0:
+				if frameIndex == 0:
+					elap = (end - start)
+					print("[INFO] single frame took {:.4f} seconds".format(elap))
+					print("[INFO] estimated total time to finish: {:.4f}".format(
+						elap * total))
+				print(f"[INFO] {frameIndex}/{total}\r", end="")
+			frameIndex += 1
 	vs.release()
