@@ -9,7 +9,9 @@ import glob
 
 from age_gender import process_face
 from sort import Sort
-from utils import ccw, intersect, translate_bbox,nms,get_colors, crop_box, generate_line 
+from utils import ccw, intersect, translate_bbox,nms,get_colors, crop_box, generate_line
+from data import data_init, save, store
+from datetime import datetime
 
 def set_args():
 	# construct the argument parse and parse the arguments
@@ -17,6 +19,8 @@ def set_args():
 	ap.add_argument("-i", "--input", help="path to input video")
 	ap.add_argument("-o", "--output", required=True,
 		help="path to output video")
+	ap.add_argument("-do", "--data-output", required=True,
+		help="path to output data")
 	ap.add_argument("-y", "--yolo", required=True,
 		help="base path to YOLO directory")
 	ap.add_argument("-cc", "--confidence", type=float, default=0.5,
@@ -59,6 +63,9 @@ if __name__ == '__main__':
 	writer = None
 	# try to determine the total number of frames in the video file
 	vs = cv2.VideoCapture(args["input"] if args["input"] is not None else 0)
+
+	storage = data_init()
+
 	if args["input"] is not None:
 		try:
 			prop = cv2.cv.CV_CAP_PROP_FRAME_COUNT if imutils.is_cv2() \
@@ -88,13 +95,12 @@ if __name__ == '__main__':
 				break
 			if W is None or H is None:
 				(H, W) = frame.shape[:2]
-			if line is None:
+			if line is None: #catch click input for line definition
 				cv2.namedWindow("input")
 				line = []
 				def click_and_crop(event, x, y, flags, param):
 					# if the left mouse button was clicked, record x,y
 					if event == cv2.EVENT_LBUTTONDOWN:
-						print(x,y)
 						line.append((x,y))
 				cv2.setMouseCallback("input", click_and_crop)
 				while len(line) < 2:
@@ -109,7 +115,6 @@ if __name__ == '__main__':
 			net.setInput(blob)
 			start = time.time()
 			layerOutputs = net.forward(ln)
-			
 
 			# lists of detections for frame
 			boxes = []
@@ -168,6 +173,18 @@ if __name__ == '__main__':
 						cv2.line(frame, p0, p1, color, 3)
 						if intersect(p0, p1, line[0], line[1]):
 							counter += 1
+							if indexIDs[i] in face_chars:
+								storage = save(storage,
+									datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+									face_chars[indexIDs[i]]['gender'],
+									face_chars[indexIDs[i]]['age']
+									)
+							else:
+								storage = save(storage,
+									datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+									None,
+									None
+									)
 					if indexIDs[i] not in face_chars:
 						text = "{}".format(indexIDs[i])
 						cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
@@ -194,7 +211,9 @@ if __name__ == '__main__':
 			writer.write(frame)
 			frameIndex += 1
 		print("[INFO] cleaning up...")
+		store(storage,args['data_output'])
 		writer.release()
+
 	elif args['characteristics']:
 		frameIndex = 0
 		while cv2.waitKey(1) < 0:
