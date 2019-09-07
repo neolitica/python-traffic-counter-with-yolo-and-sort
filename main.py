@@ -73,7 +73,7 @@ if __name__ == '__main__':
 	if args['count']:
 		tracker = Sort()
 		memory = {}
-		line = [(20, 43), (60, 900)] # go through line
+		line = None # go through line
 		counter = 0 # counted objects
 		frameIndex = 0
 		LABELS, net,ln = set_yolo(args)
@@ -81,14 +81,28 @@ if __name__ == '__main__':
 		face_chars = {} #hash to store obtained caracteristics	
 		(W, H) = (None, None)
 		# loop over frames from the video file stream
-		while True:
+		while cv2.waitKey(1) < 0:
 			# read the next frame from the file
 			(grabbed, frame) = vs.read()
 			if not grabbed:
 				break
 			if W is None or H is None:
 				(H, W) = frame.shape[:2]
-
+			if line is None:
+				cv2.namedWindow("input")
+				line = []
+				def click_and_crop(event, x, y, flags, param):
+					# if the left mouse button was clicked, record x,y
+					if event == cv2.EVENT_LBUTTONDOWN:
+						print(x,y)
+						line.append((x,y))
+				cv2.setMouseCallback("input", click_and_crop)
+				while len(line) < 2:
+					# display the image and wait for a keypress
+					cv2.imshow("input", frame)
+					key = cv2.waitKey(1) & 0xFF
+				cv2.destroyAllWindows()
+				
 			# construct a blob and perform a forward  pass of the YOLO object detector
 			blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416),
 				swapRB=True, crop=False)
@@ -175,7 +189,8 @@ if __name__ == '__main__':
 				fourcc = cv2.VideoWriter_fourcc(*"MJPG")
 				writer = cv2.VideoWriter(args["output"], fourcc, 30,
 					(frame.shape[1], frame.shape[0]), True)
-			if args["show"]: cv2.imshow("Count people", frameFace)
+			if args["show"]: 
+				cv2.imshow("Count people", frame)
 			writer.write(frame)
 			frameIndex += 1
 		print("[INFO] cleaning up...")
