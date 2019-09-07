@@ -24,13 +24,15 @@ def set_args():
 	ap.add_argument("-nmst", "--threshold", type=float, default=0.3,
 		help="threshold when applying non-maxima suppression")
 	ap.add_argument("-ft", "--face-threshold", type=float, default=0.4,
-		help="threshold when applying non-maxima suppression")
+		help="threshold when applying face detection")
 	ap.add_argument("-gt", "--gender-threshold", type=float, default=0.7,
-		help="threshold when applying non-maxima suppression")
+		help="threshold when applying gender classification")
 	ap.add_argument("-ct", "--count", action='store_true',
 		help="Count people")
 	ap.add_argument("-ch", "--characteristics", action='store_true',
 		help="Predict gender and age")
+	ap.add_argument("-sh", "--show", action='store_true',
+		help="Show frames while processing")
 	return ap
 
 def set_yolo(args):
@@ -173,6 +175,7 @@ if __name__ == '__main__':
 				fourcc = cv2.VideoWriter_fourcc(*"MJPG")
 				writer = cv2.VideoWriter(args["output"], fourcc, 30,
 					(frame.shape[1], frame.shape[0]), True)
+			if args["show"]: cv2.imshow("Count people", frameFace)
 			writer.write(frame)
 			frameIndex += 1
 		print("[INFO] cleaning up...")
@@ -185,7 +188,7 @@ if __name__ == '__main__':
 				break
 			start = time.time()
 			frameFace, age,gender = process_face(frame, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
-			#cv2.imshow("Read characteristics", frameFace)
+			if args["show"]:  cv2.imshow("Read characteristics", frameFace)
 			if writer is None:
 				# initialize our video writer
 				fourcc = cv2.VideoWriter_fourcc(*"MJPG")
