@@ -157,13 +157,22 @@ if __name__ == '__main__':
 					(x, y) = (int(box[0]), int(box[1]))
 					(w, h) = (int(box[2]), int(box[3]))
 					person = crop_box(frame,box,padding)
-					if args["characteristics"] and indexIDs[i] not in face_chars:
-						face, age, gender = process_face(person, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
-						if age is not None:
-							face_chars[indexIDs[i]] = {
-								"age": age,
-								"gender": gender
-							}
+					if args["characteristics"]:
+						if  indexIDs[i] not in face_chars:
+							face, age, gender = process_face(person, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
+							if gender[0] is not None:
+								face_chars[indexIDs[i]] = {
+									"age": age,
+									"gender": gender
+								}
+						else:
+							# check for a better quality prediction
+							face, age, gender = process_face(person, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
+							if gender[0] is not None and age[0] is not None
+								if gender[1] > face_chars[indexIDs[i]]['gender'][1]:
+									face_chars[indexIDs[i]]['gender']
+								if age[1] > face_chars[indexIDs[i]]['age'][1]:
+									face_chars[indexIDs[i]]['age']
 					color = [int(c) for c in COLORS[indexIDs[i] % len(COLORS)]]
 					cv2.rectangle(frame, (x, y), (w, h), color, 2)
 					#check intersection with target line
@@ -189,7 +198,7 @@ if __name__ == '__main__':
 						text = "{}".format(indexIDs[i])
 						cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 					else:
-						text = "{},{}".format(face_chars[indexIDs[i]]["gender"], face_chars[indexIDs[i]]["age"])
+						text = "{},{}".format(face_chars[indexIDs[i]]["gender"][0], face_chars[indexIDs[i]]["age"][0])
 						cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 					i += 1
 			cv2.line(frame, line[0], line[1], (0, 255, 255), 5)

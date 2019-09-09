@@ -54,8 +54,10 @@ def process_face(frame, face_threshold=0.5, gender_threshold=0.7):
     frameFace, bboxes = getFaceBox(faceNet, frame, face_threshold)
     age = None,
     gender = None
+    age_conf = None
+    gender_conf = None
     if not bboxes:
-        return frameFace, None, None
+        return frameFace, (None,None), (None,None)
 
     for bbox in bboxes:
         # print(bbox)
@@ -71,6 +73,8 @@ def process_face(frame, face_threshold=0.5, gender_threshold=0.7):
         gender = genderList[max_id]
         gender_conf = genderPreds[0][max_id]
         if gender_conf < gender_threshold:
+            gender = None
+            gender_conf = None
             continue
         # print("Gender Output : {}".format(genderPreds))
         # print("Gender : {}, conf = {:.3f}".format(gender, genderPreds[0].max()))
@@ -78,9 +82,10 @@ def process_face(frame, face_threshold=0.5, gender_threshold=0.7):
         ageNet.setInput(blob)
         agePreds = ageNet.forward()
         age = ageList[agePreds[0].argmax()]
+        age_conf =  agePreds[0][agePreds[0].argmax()]
         # print("Age Output : {}".format(agePreds))
         # print("Age : {}, conf = {:.3f}".format(age, agePreds[0].max()))
 
         label = "{},{}".format(gender, age)
         cv.putText(frameFace, label, (bbox[0], bbox[1]-10), cv.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv.LINE_AA)        
-    return frameFace, age, gender
+    return frameFace, (age, age_conf), (gender,gender_conf)

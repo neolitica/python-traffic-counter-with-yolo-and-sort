@@ -7,3 +7,4 @@ yolo-coco/yolov3.weights
 .vscode
 pyenv
 *.mp4
+*.csv
