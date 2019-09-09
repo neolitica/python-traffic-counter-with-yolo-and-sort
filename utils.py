@@ -43,11 +43,21 @@ def nms(boxes,confidences,detection_treshold,supression_threshold):
 def crop_box(frame,box,padding):
     return frame[int(max(0,box[1]-padding)):int(min(box[3]+padding,frame.shape[0]-1)),int(max(0,box[0]-padding)):int(min(box[2]+padding, frame.shape[1]-1))]
 
-def generate_line(previous_box,box):
+def generate_center(box):
     (x, y) = (int(box[0]), int(box[1]))
     (w, h) = (int(box[2]), int(box[3]))
-    (x2, y2) = (int(previous_box[0]), int(previous_box[1]))
-    (w2, h2) = (int(previous_box[2]), int(previous_box[3]))
-    p0 = (int(x + (w-x)/2), int(y + (h-y)/2))
-    p1 = (int(x2 + (w2-x2)/2), int(y2 + (h2-y2)/2))
-    return p0,p1
+    return (int(x + (w-x)/2), int(y + (h-y)/2))
+
+def generate_opposite(box):
+    (x, y) = (int(box[0]), int(box[1]))
+    (w, h) = (int(box[2]), int(box[3]))
+    return (int(x + (w-x)), int(y + (h-y)))
+
+def intersect_object(previous_box,box,line):
+    p0 = generate_center(previous_box)
+    p1 = generate_center(box)
+    top_left_p = (previous_box[0],previous_box[1])
+    top_left = (box[0],box[1])
+    down_right_p = generate_opposite(previous_box)
+    down_right = generate_opposite(box)
+    return intersect(p0, p1, line[0], line[1]) or intersect(top_left_p,top_left ,line[1],line[1]) or intersect(down_right_p,down_right, line[0], line[1])

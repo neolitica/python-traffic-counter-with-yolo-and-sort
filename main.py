@@ -9,7 +9,7 @@ import glob
 
 from age_gender import process_face
 from sort import Sort
-from utils import ccw, intersect, translate_bbox,nms,get_colors, crop_box, generate_line
+from utils import ccw, intersect_object, translate_bbox,nms,get_colors, crop_box 
 from data import data_init, save, store
 from datetime import datetime
 
@@ -179,9 +179,7 @@ if __name__ == '__main__':
 					#check intersection with target line
 					if indexIDs[i] in previous:
 						previous_box = previous[indexIDs[i]]
-						p0,p1 = generate_line(previous_box,box)
-						cv2.line(frame, p0, p1, color, 3)
-						if intersect(p0, p1, line[0], line[1]):
+						if intersect_object(previous_box,box,line): #TODO: this seems to be quite slow
 							counter += 1
 							counts.append((indexIDs[i],datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
 							
