@@ -85,10 +85,11 @@ if __name__ == '__main__':
 		frameIndex = 0
 		LABELS, net,ln = set_yolo(args)
 		COLORS = get_colors()
-		face_chars = {} #hash to store obtained caracteristics	
+		face_chars = {} #hash to store obtained caracteristics
+		counts = []	
 		(W, H) = (None, None)
 		# loop over frames from the video file stream
-		while cv2.waitKey(1) < 0:
+		while cv2.waitKey(1) < 0 and frameIndex < 800:
 			# read the next frame from the file
 			(grabbed, frame) = vs.read()
 			if not grabbed:
@@ -168,11 +169,11 @@ if __name__ == '__main__':
 						else:
 							# check for a better quality prediction
 							face, age, gender = process_face(person, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
-							if gender[0] is not None and age[0] is not None
+							if gender[0] is not None and age[0] is not None:
 								if gender[1] > face_chars[indexIDs[i]]['gender'][1]:
-									face_chars[indexIDs[i]]['gender']
+									face_chars[indexIDs[i]]['gender'] = gender
 								if age[1] > face_chars[indexIDs[i]]['age'][1]:
-									face_chars[indexIDs[i]]['age']
+									face_chars[indexIDs[i]]['age'] = age
 					color = [int(c) for c in COLORS[indexIDs[i] % len(COLORS)]]
 					cv2.rectangle(frame, (x, y), (w, h), color, 2)
 					#check intersection with target line
@@ -182,18 +183,8 @@ if __name__ == '__main__':
 						cv2.line(frame, p0, p1, color, 3)
 						if intersect(p0, p1, line[0], line[1]):
 							counter += 1
-							if indexIDs[i] in face_chars:
-								storage = save(storage,
-									datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-									face_chars[indexIDs[i]]['gender'],
-									face_chars[indexIDs[i]]['age']
-									)
-							else:
-								storage = save(storage,
-									datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-									None,
-									None
-									)
+							counts.append((indexIDs[i],datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
+							
 					if indexIDs[i] not in face_chars:
 						text = "{}".format(indexIDs[i])
 						cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
@@ -219,7 +210,20 @@ if __name__ == '__main__':
 				cv2.imshow("Count people", frame)
 			writer.write(frame)
 			frameIndex += 1
-		print("[INFO] cleaning up...")
+		print("[INFO] saving up...")
+		for index,date in counts:
+			if index in face_chars:
+				storage = save(storage,
+					date,
+					face_chars[index]['gender'],
+					face_chars[index]['age']
+					)
+			else:
+				storage = save(storage,
+					date,
+					None,
+					None
+					)
 		store(storage,args['data_output'])
 		writer.release()
 
@@ -247,4 +251,5 @@ if __name__ == '__main__':
 						elap * total))
 				print(f"[INFO] {frameIndex}/{total}\r", end="")
 			frameIndex += 1
+		writer.release()
 	vs.release()
