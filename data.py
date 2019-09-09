@@ -21,4 +21,4 @@ def save(df, timestamp, gender,age):
     }, ignore_index=True)
     
 def store(df,path):
-    df.to_csv(path, index_label='id')
+    df.to_csv(path, index_label='id', float_format='%.3f')

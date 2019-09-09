@@ -89,7 +89,7 @@ if __name__ == '__main__':
 		counts = []	
 		(W, H) = (None, None)
 		# loop over frames from the video file stream
-		while cv2.waitKey(1) < 0 and frameIndex < 800:
+		while cv2.waitKey(1) < 0 :
 			# read the next frame from the file
 			(grabbed, frame) = vs.read()
 			if not grabbed:
