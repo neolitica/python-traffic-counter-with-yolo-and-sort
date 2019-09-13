@@ -6,11 +6,14 @@ import time
 import cv2
 import os
 import glob
+import signal
+import atexit
+import sys
 
 from age_gender import process_face
 from sort import Sort
 from utils import ccw, intersect_object, translate_bbox,nms,get_colors, crop_box 
-from data import data_init, save, store
+from data import Storage
 from datetime import datetime
 
 def set_args():
@@ -18,7 +21,7 @@ def set_args():
 	ap = argparse.ArgumentParser()
 	ap.add_argument("-i", "--input", help="path to input video")
 	ap.add_argument("-o", "--output", required=True,
-		help="path to output video")
+		help="path to output video (must have .mp4 ext)")
 	ap.add_argument("-do", "--data-output", required=True,
 		help="path to output data")
 	ap.add_argument("-y", "--yolo", required=True,
@@ -54,6 +57,27 @@ def set_yolo(args):
 	ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 	return labels, net,ln
 
+def handle_exit(*func_args):
+	print("[INFO] saving up...")
+	vs.release()
+	writer.release()
+	if args['count']:
+		for index,date in counts:
+			if index in face_chars:
+				storage.save(
+					date,
+					face_chars[index]['gender'],
+					face_chars[index]['age']
+					)
+			else:
+				storage.save(
+					date,
+					None,
+					None
+					)
+		storage.store(args['data_output'])
+	sys.exit(0)
+
 if __name__ == '__main__':
 	ap = set_args()
 	args = vars(ap.parse_args())
@@ -61,17 +85,23 @@ if __name__ == '__main__':
 		raise ValueError("Usage: Need at least one of -ct or -ch")
 	padding = 10 # padding for bbox cropping
 	writer = None
+	fps = None
 	# try to determine the total number of frames in the video file
 	vs = cv2.VideoCapture(args["input"] if args["input"] is not None else 0)
 
-	storage = data_init()
+	storage = Storage()
 
+	atexit.register(handle_exit)
+	signal.signal(signal.SIGTERM, handle_exit)
+	signal.signal(signal.SIGINT, handle_exit)
 	if args["input"] is not None:
 		try:
 			prop = cv2.cv.CV_CAP_PROP_FRAME_COUNT if imutils.is_cv2() \
 				else cv2.CAP_PROP_FRAME_COUNT
 			total = int(vs.get(prop))
+			fps = int(vs.get(cv2.CAP_PROP_FPS))
 			print("[INFO] {} total frames in video".format(total))
+			print("[INFO] video fps {} ".format(fps))
 		except:
 			print("[INFO] could not determine # of frames in video")
 			print("[INFO] no approx. completion time can be provided")
@@ -86,10 +116,11 @@ if __name__ == '__main__':
 		LABELS, net,ln = set_yolo(args)
 		COLORS = get_colors()
 		face_chars = {} #hash to store obtained caracteristics
-		counts = []	
+		counts = []	# array of counted intersections.
+		counted_ids = set() #set of already counted ids
 		(W, H) = (None, None)
 		# loop over frames from the video file stream
-		while cv2.waitKey(1) < 0 :
+		while cv2.waitKey(1) < 0:
 			# read the next frame from the file
 			(grabbed, frame) = vs.read()
 			if not grabbed:
@@ -144,7 +175,6 @@ if __name__ == '__main__':
 			tracks = tracker.update(dets)
 			boxes = []
 			indexIDs = []
-			c = []
 			previous = memory.copy()
 			memory = {}
 			for track in tracks:
@@ -177,10 +207,11 @@ if __name__ == '__main__':
 					color = [int(c) for c in COLORS[indexIDs[i] % len(COLORS)]]
 					cv2.rectangle(frame, (x, y), (w, h), color, 2)
 					#check intersection with target line
-					if indexIDs[i] in previous:
+					if indexIDs[i] in previous and indexIDs[i] not in counted_ids:
 						previous_box = previous[indexIDs[i]]
 						if intersect_object(previous_box,box,line): #TODO: this seems to be quite slow
 							counter += 1
+							counted_ids.add(indexIDs[i])
 							counts.append((indexIDs[i],datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
 							
 					if indexIDs[i] not in face_chars:
@@ -201,29 +232,14 @@ if __name__ == '__main__':
 						elap * total))
 				print(f"[INFO] {frameIndex}/{total}\r", end="")
 			if writer is None:
-				fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-				writer = cv2.VideoWriter(args["output"], fourcc, 30,
+				fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+				output_fps = fps if fps is not None else 20
+				writer = cv2.VideoWriter(args["output"], fourcc, output_fps,
 					(frame.shape[1], frame.shape[0]), True)
 			if args["show"]: 
 				cv2.imshow("Count people", frame)
 			writer.write(frame)
 			frameIndex += 1
-		print("[INFO] saving up...")
-		for index,date in counts:
-			if index in face_chars:
-				storage = save(storage,
-					date,
-					face_chars[index]['gender'],
-					face_chars[index]['age']
-					)
-			else:
-				storage = save(storage,
-					date,
-					None,
-					None
-					)
-		store(storage,args['data_output'])
-		writer.release()
 
 	elif args['characteristics']:
 		frameIndex = 0
@@ -236,8 +252,9 @@ if __name__ == '__main__':
 			if args["show"]:  cv2.imshow("Read characteristics", frameFace)
 			if writer is None:
 				# initialize our video writer
-				fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-				writer = cv2.VideoWriter(args['output'], fourcc, 30,
+				fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+				output_fps = fps if fps is not None else 20
+				writer = cv2.VideoWriter(args['output'], fourcc, output_fps,
 					(frameFace.shape[1], frameFace.shape[0]), True)
 			writer.write(frameFace)
 			end = time.time()
@@ -249,5 +266,3 @@ if __name__ == '__main__':
 						elap * total))
 				print(f"[INFO] {frameIndex}/{total}\r", end="")
 			frameIndex += 1
-		writer.release()
-	vs.release()
