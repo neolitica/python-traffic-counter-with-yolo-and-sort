@@ -76,6 +76,10 @@ def handle_exit(*func_args):
 					None
 					)
 		storage.store(args['data_output'])
+	end = time.time()
+	elap = end - start
+	print("[INFO] Total time took {:.4f} seconds".format(elap))
+	print("[INFO] FPS: {}".format(int(frameIndex/elap)))
 	sys.exit(0)
 
 if __name__ == '__main__':
@@ -106,7 +110,7 @@ if __name__ == '__main__':
 			print("[INFO] could not determine # of frames in video")
 			print("[INFO] no approx. completion time can be provided")
 			total = -1
-
+	
 	if args['count']:
 		tracker = Sort()
 		memory = {}
@@ -120,6 +124,7 @@ if __name__ == '__main__':
 		counted_ids = set() #set of already counted ids
 		(W, H) = (None, None)
 		# loop over frames from the video file stream
+		
 		while cv2.waitKey(1) < 0:
 			# read the next frame from the file
 			(grabbed, frame) = vs.read()
@@ -140,12 +145,14 @@ if __name__ == '__main__':
 					cv2.imshow("input", frame)
 					key = cv2.waitKey(1) & 0xFF
 				cv2.destroyAllWindows()
+				start = time.time()
 				
 			# construct a blob and perform a forward  pass of the YOLO object detector
+			
 			blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416),
 				swapRB=True, crop=False)
 			net.setInput(blob)
-			start = time.time()
+			
 			layerOutputs = net.forward(ln)
 
 			# lists of detections for frame
@@ -243,6 +250,7 @@ if __name__ == '__main__':
 
 	elif args['characteristics']:
 		frameIndex = 0
+		start = time.time()
 		while cv2.waitKey(1) < 0:
 			(grabbed, frame) = vs.read()
 			if not grabbed:
