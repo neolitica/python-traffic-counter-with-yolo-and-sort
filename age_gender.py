@@ -37,19 +37,24 @@ def getFaceBox(net, frame, conf_threshold=0.7):
 faceProto = "age_gender_models/opencv_face_detector.pbtxt"
 faceModel = "age_gender_models/opencv_face_detector_uint8.pb"
 
-ageProto = "age_gender_models/age_deploy.prototxt"
-ageModel = "age_gender_models/age_net.caffemodel"
+age_weights_path = "age_net/age_net.pth"
+age_model_path = "age_net/age_net.py"
+
 
 gender_weights_path = "gender_net/gender_net.pth"
 gender_model_path = "gender_net/gender_net.py"
 
-# Load network
-ageNet = cv.dnn.readNet(ageModel, ageProto)
+# Load networks
 
 MainModel = imp.load_source('MainModel', gender_model_path)
 genderNet = torch.load(gender_weights_path)
 genderNet.eval()
 genderNet.cuda()
+
+MainModel = imp.load_source('MainModel', age_model_path)
+ageNet = torch.load(age_weights_path)
+ageNet.eval()
+ageNet.cuda()
 
 faceNet = cv.dnn.readNet(faceModel, faceProto)
 
@@ -88,9 +93,7 @@ def process_face(frame, face_threshold=0.5, gender_threshold=0.7):
             continue
         # print("Gender Output : {}".format(genderPreds))
         # print("Gender : {}, conf = {:.3f}".format(gender, genderPreds[0].max()))
-
-        ageNet.setInput(blob)
-        agePreds = ageNet.forward()
+        agePreds = ageNet.forward(tensor)
         age = ageList[agePreds[0].argmax()]
         age_conf =  agePreds[0][agePreds[0].argmax()]
         # print("Age Output : {}".format(agePreds))

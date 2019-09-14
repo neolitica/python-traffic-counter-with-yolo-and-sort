@@ -10,7 +10,7 @@ import signal
 import atexit
 import sys
 
-from age_gender import process_face
+
 from sort import Sort
 from utils import ccw, intersect_object, translate_bbox,nms,get_colors, crop_box 
 from data import Storage
@@ -87,6 +87,9 @@ if __name__ == '__main__':
 	args = vars(ap.parse_args())
 	if not (args['characteristics'] or args['count']):
 		raise ValueError("Usage: Need at least one of -ct or -ch")
+	if args['characteristics']:
+		from age_gender import process_face
+		
 	padding = 10 # padding for bbox cropping
 	writer = None
 	fps = None
