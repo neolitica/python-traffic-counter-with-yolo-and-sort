@@ -89,11 +89,10 @@ if __name__ == '__main__':
 		raise ValueError("Usage: Need at least one of -ct or -ch")
 	if args['characteristics']:
 		from age_gender import process_face
-		
+
 	padding = 10 # padding for bbox cropping
 	writer = None
 	fps = None
-	# try to determine the total number of frames in the video file
 	vs = cv2.VideoCapture(args["input"] if args["input"] is not None else 0)
 
 	storage = Storage()
@@ -113,7 +112,8 @@ if __name__ == '__main__':
 			print("[INFO] could not determine # of frames in video")
 			print("[INFO] no approx. completion time can be provided")
 			total = -1
-	
+	else:
+		total = 0
 	if args['count']:
 		tracker = Sort()
 		memory = {}
