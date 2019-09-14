@@ -3,6 +3,10 @@ import cv2 as cv
 import math
 import time
 import argparse
+import torch
+import imp
+import numpy as np
+from torchvision.transforms import ToTensor
 
 from utils import crop_box
 
@@ -36,12 +40,17 @@ faceModel = "age_gender_models/opencv_face_detector_uint8.pb"
 ageProto = "age_gender_models/age_deploy.prototxt"
 ageModel = "age_gender_models/age_net.caffemodel"
 
-genderProto = "age_gender_models/gender_deploy.prototxt"
-genderModel = "age_gender_models/gender_net.caffemodel"
+gender_weights_path = "gender_net/gender_net.pth"
+gender_model_path = "gender_net/gender_net.py"
 
 # Load network
 ageNet = cv.dnn.readNet(ageModel, ageProto)
-genderNet = cv.dnn.readNet(genderModel, genderProto)
+
+MainModel = imp.load_source('MainModel', gender_model_path)
+genderNet = torch.load(gender_weights_path)
+genderNet.eval()
+genderNet.cuda()
+
 faceNet = cv.dnn.readNet(faceModel, faceProto)
 
 # Open a video file or an image file or a camera stream
@@ -67,8 +76,9 @@ def process_face(frame, face_threshold=0.5, gender_threshold=0.7):
         except:
             print("Could not blob face")
             continue
-        genderNet.setInput(blob)
-        genderPreds = genderNet.forward()
+        tensor = torch.from_numpy(blob)
+        tensor = tensor.cuda()
+        genderPreds = genderNet.forward(tensor)
         max_id = genderPreds[0].argmax()
         gender = genderList[max_id]
         gender_conf = genderPreds[0][max_id]
