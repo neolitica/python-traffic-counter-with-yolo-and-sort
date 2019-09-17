@@ -196,7 +196,7 @@ if __name__ == '__main__':
 					(x, y) = (int(box[0]), int(box[1]))
 					(w, h) = (int(box[2]), int(box[3]))
 					person = crop_box(frame,box,padding)
-					if args["characteristics"]:
+					if args["characteristics"]: #TODO: this is slowing down yolo
 						if  indexIDs[i] not in face_chars:
 							face, age, gender = process_face(person, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
 							if gender[0] is not None:
