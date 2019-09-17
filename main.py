@@ -10,11 +10,13 @@ import signal
 import atexit
 import sys
 
-
 from sort import Sort
 from utils import ccw, intersect_object, translate_bbox,nms,get_colors, crop_box 
 from data import Storage
 from datetime import datetime
+from yolo.darknet import Darknet
+from yolo.util import *
+from yolo.preprocess import prep_image, inp_to_image
 
 def set_args():
 	# construct the argument parse and parse the arguments
@@ -44,7 +46,7 @@ def set_args():
 
 def set_yolo(args):
 	labelsPath = os.path.sep.join([args["yolo"], "coco.names"])
-	labels = open(labelsPath).read().strip().split("\n")
+	labels = load_classes(labelsPath)
 
 	weightsPath = os.path.sep.join([args["yolo"], "yolov3.weights"])
 	configPath = os.path.sep.join([args["yolo"], "yolov3.cfg"])
@@ -52,10 +54,12 @@ def set_yolo(args):
 	# load our YOLO object detector trained on COCO dataset (80 classes)
 	# and determine only the *output* layer names that we need from YOLO
 	print("[INFO] loading YOLO from disk...")
-	net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
-	ln = net.getLayerNames()
-	ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
-	return labels, net,ln
+	model = Darknet(configPath)
+	model.load_weights(weightsPath)
+	model.net_info["height"] = 320
+	model.cuda()
+	model.eval()
+	return labels, model
 
 def handle_exit(*func_args):
 	print("[INFO] saving up...")
@@ -120,7 +124,7 @@ if __name__ == '__main__':
 		line = None # go through line
 		counter = 0 # counted objects
 		frameIndex = 0
-		LABELS, net,ln = set_yolo(args)
+		LABELS, net = set_yolo(args)
 		COLORS = get_colors()
 		face_chars = {} #hash to store obtained caracteristics
 		counts = []	# array of counted intersections.
@@ -152,33 +156,30 @@ if __name__ == '__main__':
 				
 			# construct a blob and perform a forward  pass of the YOLO object detector
 			
-			blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416),
+			blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (320, 320),
 				swapRB=True, crop=False)
-			net.setInput(blob)
-			
-			layerOutputs = net.forward(ln)
+			tensor = torch.from_numpy(blob)
+			tensor = tensor.cuda()
+			layerOutputs = net(tensor,True)
+			dets = write_results(layerOutputs, args['confidence'], len(LABELS), nms = True, nms_conf = args['threshold']) #[im_id, x0,y0,x1,y1,?,conf?,class_id]
 
+			#bbox rescaling
+			im_dim_list=torch.Tensor([[W,H]*2]*dets.size()[0]).cuda()
+			scaling_factor = torch.min(320/im_dim_list,1)[0].view(-1,1)
+			dets[:,[1,3]] -= (320 - scaling_factor*im_dim_list[:,0].view(-1,1))/2
+			dets[:,[2,4]] -= (320 - scaling_factor*im_dim_list[:,1].view(-1,1))/2
+			dets[:,1:5] /= scaling_factor
 			# lists of detections for frame
 			boxes = []
 			confidences = []
 			classIDs = []
-
-			for output in layerOutputs:
-				for detection in output:
-					# extract the class ID and confidence (i.e., probability)
-					scores = detection[5:]
-					classID = np.argmax(scores)
-					confidence = scores[classID]
-					if confidence > args["confidence"] and classID == 0: # 0 is for person
-						# change bbox output format
-						x,y, width,height = translate_bbox(detection,W,H)
-						# update our lists 
-						boxes.append([x, y, int(width), int(height)])
-						confidences.append(float(confidence))
-						classIDs.append(classID)
-
-			# apply non-maxima suppression to suppress overlapped bboxes
-			dets = nms(boxes,confidences, args['confidence'], args['threshold'])
+			for i in range(dets.shape[0]):
+				if int(dets[i,-1]) == 0:
+					dets[i, [1,3]] = torch.clamp(dets[i, [1,3]], 0.0, im_dim_list[i,0])
+					dets[i, [2,4]] = torch.clamp(dets[i, [2,4]], 0.0, im_dim_list[i,1])
+					classIDs.append(int(dets[i,-1]))
+					boxes.append(dets[i,1:5])
+					confidences.append(dets[i,-2])
 
 			np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
 			dets = np.asarray(dets)
