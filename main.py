@@ -165,24 +165,21 @@ if __name__ == '__main__':
 
 			#bbox rescaling
 			im_dim_list=torch.Tensor([[W,H]*2]*dets.size()[0]).cuda()
-			scaling_factor = torch.min(320/im_dim_list,1)[0].view(-1,1)
-			dets[:,[1,3]] -= (320 - scaling_factor*im_dim_list[:,0].view(-1,1))/2
-			dets[:,[2,4]] -= (320 - scaling_factor*im_dim_list[:,1].view(-1,1))/2
-			dets[:,1:5] /= scaling_factor
+			dets[:,1:5] /= 320
+			dets[:,1:5] *= im_dim_list
+
 			# lists of detections for frame
-			boxes = []
 			confidences = []
 			classIDs = []
+			to_track = []
 			for i in range(dets.shape[0]):
 				if int(dets[i,-1]) == 0:
-					dets[i, [1,3]] = torch.clamp(dets[i, [1,3]], 0.0, im_dim_list[i,0])
-					dets[i, [2,4]] = torch.clamp(dets[i, [2,4]], 0.0, im_dim_list[i,1])
 					classIDs.append(int(dets[i,-1]))
-					boxes.append(dets[i,1:5])
 					confidences.append(dets[i,-2])
+					to_track.append(np.asarray(dets[i,[1,2,3,4,6]]))
 
 			np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
-			dets = np.asarray(dets)
+			dets = np.asarray(to_track)
 			tracks = tracker.update(dets)
 			boxes = []
 			indexIDs = []
