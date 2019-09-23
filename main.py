@@ -207,7 +207,7 @@ if __name__ == '__main__':
 						#check intersection with target line
 						if indexIDs[i] in previous and indexIDs[i] not in counted_ids:
 							previous_box = previous[indexIDs[i]]
-							if intersect_object(previous_box,box,line): #TODO: this seems to be quite slow
+							if intersect_object(previous_box,box,line): #TODO: this seems to be quite slow and not working properly
 								counter += 1
 								counted_ids.add(indexIDs[i])
 								counts.append((indexIDs[i],datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
