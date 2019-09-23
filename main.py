@@ -162,78 +162,84 @@ if __name__ == '__main__':
 			tensor = tensor.cuda()
 			layerOutputs = net(tensor,True)
 			dets = write_results(layerOutputs, args['confidence'], len(LABELS), nms = True, nms_conf = args['threshold']) #[im_id, x0,y0,x1,y1,?,conf?,class_id]
+			if type(dets) != int:
+				#bbox rescaling
+				im_dim_list=torch.Tensor([[W,H]*2]*dets.size()[0]).cuda()
+				dets[:,1:5] /= 320
+				dets[:,1:5] *= im_dim_list
 
-			#bbox rescaling
-			im_dim_list=torch.Tensor([[W,H]*2]*dets.size()[0]).cuda()
-			dets[:,1:5] /= 320
-			dets[:,1:5] *= im_dim_list
+				# lists of detections for frame
+				confidences = []
+				classIDs = []
+				to_track = []
+				for i in range(dets.shape[0]):
+					if int(dets[i,-1]) == 0:
+						classIDs.append(int(dets[i,-1]))
+						confidences.append(dets[i,-2])
+						to_track.append(np.asarray(dets[i,[1,2,3,4,6]]))
 
-			# lists of detections for frame
-			confidences = []
-			classIDs = []
-			to_track = []
-			for i in range(dets.shape[0]):
-				if int(dets[i,-1]) == 0:
-					classIDs.append(int(dets[i,-1]))
-					confidences.append(dets[i,-2])
-					to_track.append(np.asarray(dets[i,[1,2,3,4,6]]))
+				np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
+				dets = np.asarray(to_track)
+				tracks = tracker.update(dets)
+				boxes = []
+				indexIDs = []
+				previous = memory.copy()
+				memory = {}
+				for track in tracks:
+					boxes.append([track[0], track[1], track[2], track[3]])
+					indexIDs.append(int(track[4]))
+					memory[indexIDs[-1]] = boxes[-1]
 
-			np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
-			dets = np.asarray(to_track)
-			tracks = tracker.update(dets)
-			boxes = []
-			indexIDs = []
-			previous = memory.copy()
-			memory = {}
-			for track in tracks:
-				boxes.append([track[0], track[1], track[2], track[3]])
-				indexIDs.append(int(track[4]))
-				memory[indexIDs[-1]] = boxes[-1]
-
-			if len(boxes) > 0:
-				i = 0
-				for box in boxes:
-					(x, y) = (int(box[0]), int(box[1]))
-					(w, h) = (int(box[2]), int(box[3]))
-					person = crop_box(frame,box,padding)
-					if args["characteristics"]: #TODO: this is slowing down yolo
-						if  indexIDs[i] not in face_chars:
-							face, age, gender = process_face(person, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
-							if gender[0] is not None:
-								face_chars[indexIDs[i]] = {
-									"age": age,
-									"gender": gender
-								}
+				if len(boxes) > 0:
+					i = 0
+					people = []
+					frame_ids = []
+					for box in boxes:
+						(x, y) = (int(box[0]), int(box[1]))
+						(w, h) = (int(box[2]), int(box[3]))
+						
+						if args["characteristics"]: #TODO: this is slowing down yolo
+							people.append(crop_box(frame,box,padding).astype(np.float32))
+							frame_ids.append(indexIDs[i])
+						
+						color = [int(c) for c in COLORS[indexIDs[i] % len(COLORS)]]
+						cv2.rectangle(frame, (x, y), (w, h), color, 2)
+						#check intersection with target line
+						if indexIDs[i] in previous and indexIDs[i] not in counted_ids:
+							previous_box = previous[indexIDs[i]]
+							if intersect_object(previous_box,box,line): #TODO: this seems to be quite slow
+								counter += 1
+								counted_ids.add(indexIDs[i])
+								counts.append((indexIDs[i],datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
+								
+						if indexIDs[i] not in face_chars:
+							text = "{}".format(indexIDs[i])
+							cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 						else:
-							# check for a better quality prediction
-							face, age, gender = process_face(person, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
-							if gender[0] is not None and age[0] is not None:
-								if gender[1] > face_chars[indexIDs[i]]['gender'][1]:
-									face_chars[indexIDs[i]]['gender'] = gender
-								if age[1] > face_chars[indexIDs[i]]['age'][1]:
-									face_chars[indexIDs[i]]['age'] = age
-					color = [int(c) for c in COLORS[indexIDs[i] % len(COLORS)]]
-					cv2.rectangle(frame, (x, y), (w, h), color, 2)
-					#check intersection with target line
-					if indexIDs[i] in previous and indexIDs[i] not in counted_ids:
-						previous_box = previous[indexIDs[i]]
-						if intersect_object(previous_box,box,line): #TODO: this seems to be quite slow
-							counter += 1
-							counted_ids.add(indexIDs[i])
-							counts.append((indexIDs[i],datetime.now().strftime("%d/%m/%Y %H:%M:%S")))
-							
-					if indexIDs[i] not in face_chars:
-						text = "{}".format(indexIDs[i])
-						cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-					else:
-						text = "{},{}".format(face_chars[indexIDs[i]]["gender"][0], face_chars[indexIDs[i]]["age"][0])
-						cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
-					i += 1
+							text = "{},{}".format(face_chars[indexIDs[i]]["gender"][0], face_chars[indexIDs[i]]["age"][0])
+							cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+						i += 1
+					if args["characteristics"]:
+						faces, ages, genders = process_face(people, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
+						if genders is not None and ages is not None:
+							for i in range(len(genders)):
+								if  frame_ids[i] not in face_chars and genders[i][0] != 'None':
+										face_chars[frame_ids[i]] = {
+											"age": ages[i],
+											"gender": genders[i]
+										}
+								elif genders[i][0] != 'None':
+									# check for a better quality prediction
+										if genders[i][1] > face_chars[frame_ids[i]]['gender'][1]:
+											face_chars[frame_ids[i]]['gender'] = genders[i]
+										if ages[i][1] > face_chars[frame_ids[i]]['age'][1]:
+											face_chars[frame_ids[i]]['age'] = ages[i]
+
 			cv2.line(frame, line[0], line[1], (0, 255, 255), 5)
 			cv2.putText(frame, str(counter), (100,200), cv2.FONT_HERSHEY_DUPLEX, 5.0, (0, 255, 255), 10)
-			end = time.time()
 			if total > 0:
 				if frameIndex == 0:
+					end = time.time()
 					elap = (end - start)
 					print("[INFO] single frame took {:.4f} seconds".format(elap))
 					print("[INFO] estimated total time to finish: {:.4f}".format(
@@ -248,7 +254,7 @@ if __name__ == '__main__':
 				cv2.imshow("Count people", frame)
 			writer.write(frame)
 			frameIndex += 1
-
+	# FIXME: NOT RUNNING
 	elif args['characteristics']:
 		frameIndex = 0
 		start = time.time()
@@ -256,7 +262,6 @@ if __name__ == '__main__':
 			(grabbed, frame) = vs.read()
 			if not grabbed:
 				break
-			start = time.time()
 			frameFace, age,gender = process_face(frame, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
 			if args["show"]:  cv2.imshow("Read characteristics", frameFace)
 			if writer is None:

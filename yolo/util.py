@@ -149,7 +149,7 @@ def write_results(prediction, confidence, num_classes, nms = True, nms_conf = 0.
         try:
             img_classes = unique(image_pred_[:,-1])
         except:
-             continue
+            continue
         #WE will do NMS classwise
         for cls in img_classes:
             #get the detections with one particular class
@@ -201,13 +201,13 @@ def write_results(prediction, confidence, num_classes, nms = True, nms_conf = 0.
             batch_ind = image_pred_class.new(image_pred_class.size(0), 1).fill_(ind)
             seq = batch_ind, image_pred_class
             if not write:
-                output = torch.cat(seq,1)
+                final_output = torch.cat(seq,1)
                 write = True
             else:
                 out = torch.cat(seq,1)
-                output = torch.cat((output,out))
-    
-    return output
+                final_output = torch.cat((final_output,out))
+
+    return final_output
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
