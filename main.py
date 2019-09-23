@@ -254,7 +254,7 @@ if __name__ == '__main__':
 				cv2.imshow("Count people", frame)
 			writer.write(frame)
 			frameIndex += 1
-	# FIXME: NOT RUNNING
+	# FIXME: NOT RUNNING need to update for batch processing and adde drawings
 	elif args['characteristics']:
 		frameIndex = 0
 		start = time.time()
