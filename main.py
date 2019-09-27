@@ -198,7 +198,7 @@ if __name__ == '__main__':
 						(x, y) = (int(box[0]), int(box[1]))
 						(w, h) = (int(box[2]), int(box[3]))
 						
-						if args["characteristics"]: #TODO: this is slowing down yolo
+						if args["characteristics"]:
 							people.append(crop_box(frame,box,padding).astype(np.float32))
 							frame_ids.append(indexIDs[i])
 						
@@ -220,7 +220,7 @@ if __name__ == '__main__':
 							cv2.putText(frame, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 						i += 1
 					if args["characteristics"]:
-						faces, ages, genders = process_face(people, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
+						faces, ages, genders, _ = process_face(people, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
 						if genders is not None and ages is not None:
 							for i in range(len(genders)):
 								if  frame_ids[i] not in face_chars and genders[i][0] != 'None':
@@ -254,7 +254,6 @@ if __name__ == '__main__':
 				cv2.imshow("Count people", frame)
 			writer.write(frame)
 			frameIndex += 1
-	# FIXME: NOT RUNNING need to update for batch processing and adde drawings
 	elif args['characteristics']:
 		frameIndex = 0
 		start = time.time()
@@ -262,7 +261,13 @@ if __name__ == '__main__':
 			(grabbed, frame) = vs.read()
 			if not grabbed:
 				break
-			frameFace, age,gender = process_face(frame, face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"])
+			frameFace, ages,genders, bboxes = process_face([frame], face_threshold=args["face_threshold"], gender_threshold=args["gender_threshold"], from_one=True)
+			frameFace = frameFace[0]
+			for i in range(len(ages)):
+				if genders[i][0] != 'None':
+					label = f'{genders[i][0]}-{ages[i][0]}'
+					cv2.putText(frameFace, label, (bboxes[i][0], bboxes[i][1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)        
+					cv2.rectangle(frameFace, (bboxes[i][0], bboxes[i][1]), (bboxes[i][2], bboxes[i][3]), (0, 255, 0), int(round(frameFace.shape[1]/150)), 8)
 			if args["show"]:  cv2.imshow("Read characteristics", frameFace)
 			if writer is None:
 				# initialize our video writer
