@@ -60,4 +60,4 @@ def intersect_object(previous_box,box,line):
     top_left = (box[0],box[1])
     down_right_p = generate_opposite(previous_box)
     down_right = generate_opposite(box)
-    return intersect(p0, p1, line[0], line[1]) or intersect(top_left_p,top_left ,line[1],line[1]) or intersect(down_right_p,down_right, line[0], line[1])
+    return intersect(p0, p1, line[0], line[1]) or intersect(top_left_p,top_left ,line[0],line[1]) or intersect(down_right_p,down_right, line[0], line[1])
